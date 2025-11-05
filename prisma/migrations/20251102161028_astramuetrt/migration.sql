@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "report_approvals" ALTER COLUMN "approvedByCS" DROP NOT NULL,
+ALTER COLUMN "approvedByCS" DROP DEFAULT,
+ALTER COLUMN "approvedByCP" DROP NOT NULL,
+ALTER COLUMN "approvedByCP" DROP DEFAULT;

@@ -1,0 +1,196 @@
+// Prisma schema for NPC Smart Report system
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum ReportCategory {
+  OVERDUE
+  ONTIME
+}
+
+enum ReportStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  PARTIAL
+  APPROVED
+  REVIEWED
+  REJECTED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RETURNED
+}
+
+enum Reasons {
+  EMAIL_VERIFICATION
+  RESET_PASSWORD
+  LOGIN_VERIFICATION
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+
+
+// ==================== USER MANAGEMENT MODELS ====================
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  username  String   @unique
+  phone     String   @unique
+  password  String
+  status    UserStatus @default(PENDING)
+  rank      String?
+  address   String?
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  studentProfile Student?
+  adminProfile   Admin?
+  verifications  Verification[]
+  
+  // Report relations
+  submittedReports Report[]
+  adminReviews     ReportReview[]
+
+  @@map("users")
+  @@index([email, status])
+  @@index([role, status])
+  @@index([createdAt])
+}
+
+model Student {
+  id          String       @id @default(uuid())
+  userId      String       @unique
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classId     String?
+  class       Class?       @relation(fields: [classId], references: [id])
+
+  @@map("students")
+}
+
+model Class {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  students    Student[]  // one-to-many
+  reports     Report[]
+
+  @@map("classes")
+}
+
+
+
+model Admin {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department  String?
+  permissions String[]
+
+  @@map("admins")
+}
+
+model Verification {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason    Reasons
+  link      String?
+  code      String?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("verifications")
+  @@index([userId, reason])
+  @@index([createdAt])
+}
+
+// ==================== ACADEMIC MODELS ====================
+
+
+
+// ==================== INVENTORY MODELS ====================
+
+model Item {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("items")
+}
+
+// ==================== REPORTING SYSTEM MODELS ====================
+
+model Report {
+  id              String         @id @default(uuid())
+  title           String
+  reporterId      String
+  reporter        User           @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  classId         String
+  class           Class          @relation(fields: [classId], references: [id])
+  itemEvaluated   Json?
+  generalComment  String?
+  status          ReportStatus   @default(SUBMITTED)
+  category        ReportCategory @default(ONTIME)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  reviews         ReportReview[]
+
+  @@map("reports")
+  @@index([reporterId, status])
+  @@index([classId, createdAt])
+  @@index([status, category])
+  @@index([createdAt])
+}
+
+model ReportReview {
+  id               String       @id @default(uuid())
+  reportId         String
+  report           Report       @relation(fields: [reportId], references: [id])
+  adminId          String?
+  admin            User?        @relation(fields: [adminId], references: [id])
+  status           ReviewStatus @default(PENDING)
+  comments         String?
+  reviewedAt       DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@map("report_reviews")
+  @@index([reportId])
+  @@index([adminId, status])
+  @@index([createdAt])
+}
