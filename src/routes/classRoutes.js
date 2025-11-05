@@ -24,6 +24,6 @@ router.get("/getClass/:id", getClass);
 router.delete("/deleteClass/:id", deleteClass);
 
 // Get all classes
-router.get("/getAllClasss", getAllClass);
+router.get("/getAllClass", getAllClass);
 
 export default router;

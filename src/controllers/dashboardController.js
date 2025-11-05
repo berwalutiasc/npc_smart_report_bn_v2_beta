@@ -517,3 +517,229 @@ function mapReportStatus(prismaStatus) {
     
     return statusMap[prismaStatus] || 'pending';
 }
+
+
+
+export const updateProfileUser = async (req, res) => {
+    try {
+        console.log("Update profile request received:", {
+            user: req.user,
+            body: req.body
+        });
+
+        const id = req.user.id;
+        
+        // Fix: Check both req.body.updates and req.body
+        const updates = req.body.updates || req.body;
+        const { name, email, phone, address, newClass } = updates;
+        
+        console.log("Extracted updates:", { name, email, phone, address, newClass });
+
+        let classId = null;
+        
+        // Check if newClass is provided and get the class ID
+        if (newClass) {
+            // Check if the class exists by name
+            const classExists = await prisma.class.findUnique({
+                where: { name: newClass }
+            });
+            
+            if (!classExists) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid class name"
+                });
+            }
+            classId = classExists.id;
+            console.log("Found class ID:", classId);
+        }
+
+        // Validate required fields
+        if (!name || !email) {
+            return res.status(400).json({
+                success: false,
+                message: "Name and email are required fields"
+            });
+        }
+
+        // Check if user exists
+        const existingUser = await prisma.user.findUnique({
+            where: { id },
+            include: { studentProfile: true }
+        });
+
+        if (!existingUser) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        console.log("Existing user:", existingUser);
+
+        // Prepare update data
+        const updateData = {
+            name,
+            email,
+            ...(phone !== undefined && { phone: phone || null }),
+            ...(address !== undefined && { address: address || null }),
+        };
+
+        console.log("Update data:", updateData);
+
+        // Handle student profile update if classId is provided
+        if (classId && existingUser.role === 'STUDENT') {
+            console.log("Processing class update for student");
+            
+            // Use transaction to ensure both updates succeed or fail together
+            await prisma.$transaction(async (tx) => {
+                // Update user
+                await tx.user.update({
+                    where: { id },
+                    data: updateData
+                });
+
+                // Update or create student profile
+                if (existingUser.studentProfile) {
+                    console.log("Updating existing student profile");
+                    await tx.student.update({
+                        where: { userId: id },
+                        data: { classId: classId }
+                    });
+                } else {
+                    console.log("Creating new student profile");
+                    await tx.student.create({
+                        data: {
+                            userId: id,
+                            classId: classId
+                        }
+                    });
+                }
+            });
+        } else {
+            console.log("Updating user only");
+            // Update user only
+            await prisma.user.update({
+                where: { id },
+                data: updateData
+            });
+        }
+
+        // Fetch updated user data with proper formatting to match getProfileUser
+        const updatedUser = await prisma.user.findUnique({
+            where: { id },
+            include: {
+                studentProfile: {
+                    include: {
+                        class: {
+                            select: {
+                                id: true,
+                                name: true,
+                                description: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        console.log("Update successful, returning formatted data");
+
+        // Format the response to match getProfileUser structure
+        const formattedResponse = {
+            // Personal Information
+            firstName: updatedUser.name.split(' ')[0] || updatedUser.name,
+            lastName: updatedUser.name.split(' ').slice(1).join(' ') || '',
+            email: updatedUser.email,
+            phone: updatedUser.phone,
+            studentId: updatedUser.username,
+            class: updatedUser.studentProfile?.class?.name || 'Not assigned',
+            department: updatedUser.studentProfile?.class?.description || 'General Studies',
+            enrollmentDate: new Date(updatedUser.createdAt).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long' 
+            }),
+            address: updatedUser.address || 'Address not provided',
+            dateOfBirth: updatedUser.createdAt.toISOString().split('T')[0],
+            
+            // Student role
+            studentRole: updatedUser.studentProfile?.studentRole || 'WS',
+            
+            // Statistics (you might want to recalculate these or keep existing ones)
+            statistics: [
+                { 
+                    label: 'Reports Submitted', 
+                    value: '0', 
+                    icon: 'FileText', 
+                    color: '#3b82f6' 
+                },
+                { 
+                    label: 'Approved Reports', 
+                    value: '0', 
+                    icon: 'CheckCircle', 
+                    color: '#10b981' 
+                },
+                { 
+                    label: 'Pending Reports', 
+                    value: '0', 
+                    icon: 'Clock', 
+                    color: '#f59e0b' 
+                },
+                { 
+                    label: 'Student Role', 
+                    value: updatedUser.studentProfile?.studentRole || 'WS', 
+                    icon: 'Award', 
+                    color: '#8b5cf6' 
+                }
+            ],
+
+            // Additional backend data
+            backendData: {
+                userId: updatedUser.id,
+                username: updatedUser.username,
+                status: updatedUser.status,
+                rank: updatedUser.rank,
+                studentProfileId: updatedUser.studentProfile?.id,
+                classId: updatedUser.studentProfile?.classId,
+                createdAt: updatedUser.createdAt,
+                updatedAt: updatedUser.updatedAt
+            }
+        };
+
+        return res.status(200).json({
+            success: true,
+            message: "Profile updated successfully",
+            data: formattedResponse
+        });
+
+    } catch (error) {
+        console.error("Update profile error:", error);
+        console.error("Error details:", {
+            code: error.code,
+            meta: error.meta,
+            message: error.message
+        });
+
+        // Handle specific Prisma errors
+        if (error.code === 'P2002') {
+            const field = error.meta?.target?.[0];
+            return res.status(400).json({
+                success: false,
+                message: `${field} already exists`
+            });
+        }
+
+        if (error.code === 'P2025') {
+            return res.status(404).json({
+                success: false,
+                message: "Record not found"
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+}

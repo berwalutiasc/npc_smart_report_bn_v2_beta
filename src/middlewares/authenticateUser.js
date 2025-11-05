@@ -10,11 +10,16 @@ const prisma = new PrismaClient();
 export const authenticateUser = async (req, res, next) => {
   try {
     // 1️⃣ Extract token from cookies
+    console.log("Asd")
     const token = req.cookies.loginToken;
 
     if (!token) {
+      console.log("No token provided")
       return res.status(401).json({ message: "Access denied. No token provided." });
     }
+
+
+    console.log("here")
 
     // 2️⃣ Verify token
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);

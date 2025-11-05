@@ -3,7 +3,8 @@ import {
     getStudentDashboardData,
     getProfileUser,
     getThat,
-    getProfileAdmin
+    getProfileAdmin,
+    updateProfileUser
 } from "../controllers/dashboardController.js";
 import { authenticateUser } from "../middlewares/authenticateUser.js";
 
@@ -26,5 +27,7 @@ router.get("/getProfileAdmin", authenticateUser, getProfileAdmin);
 
 // Test endpoint (no authentication required)
 router.get("/maserati", getThat);
+
+router.post("/updateProfile", authenticateUser, updateProfileUser);
 
 export default router;

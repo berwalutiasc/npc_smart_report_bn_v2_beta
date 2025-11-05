@@ -8,12 +8,8 @@ const prisma = new PrismaClient();
  */
 export const createClass = async (req, res) => {
     try {
-        const {
-            name,
-            description,
-        } = req.body;
+        const { name, description } = req.body;
 
-        // Validate required fields
         if (!name || !description) {
             return res.status(400).json({
                 success: false,
@@ -21,21 +17,29 @@ export const createClass = async (req, res) => {
             });
         }
 
-        // Create new class in database
-        const Class = await prisma.class.create({
-            data: {
-                name,
-                description,
-            }
+        const newClass = await prisma.class.create({
+            data: { name, description }
         });
 
-        return res.status(200).json({ success: true, Class });
+        return res.status(201).json({ success: true, class: newClass });
     } catch (error) {
+        // Handle duplicate name error
+        if (error.code === 'P2002' && error.meta?.target?.includes('name')) {
+            return res.status(400).json({
+                success: false,
+                message: `Class with name '${req.body.name}' already exists`
+            });
+        }
+
+        console.error("Error creating class:", error);
         return res.status(500).json({
-            message: "Internal server error"
+            success: false,
+            message: "Internal server error",
+            error: error.message // remove in production
         });
     }
 };
+
 
 /**
  * Update an existing class
