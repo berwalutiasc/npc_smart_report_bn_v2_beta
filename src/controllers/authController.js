@@ -491,7 +491,6 @@ export const verifyLoginOtpUser = async (req, res) => {
                 name: decodedToken.name,
                 email: decodedToken.userEmail,
                 role: decodedToken.userRole,
-                studentRole: decodedToken.studentRole || null
             }
         });
 
