@@ -50,13 +50,29 @@ io.on("connection", (socket) => {
 app.set("io", io);
 
 // CORS configuration - MUST be early to handle preflight requests and cookies
+const allowedOrigins = [
+    process.env.CLIENT_URL,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://localhost:3000",
+];
+
 app.use(cors({
-    origin: process.env.CLIENT_URL || "*",
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true); // allow non-browser clients
+        if (allowedOrigins.filter(Boolean).includes(origin)) {
+            return callback(null, true);
+        }
+        return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     exposedHeaders: ["Set-Cookie"]
 }));
+
+// Preflight support
+app.options("*", cors());
 
 // Middleware setup
 app.use(cookieParser());

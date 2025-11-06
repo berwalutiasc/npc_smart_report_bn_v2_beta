@@ -440,8 +440,16 @@ export const verifyLoginOtpUser = async (req, res) => {
 
         const { otp } = req.body;
 
-        // Extract token from cookie
-        const token = req.cookies.tokenUser;
+        // Extract token from cookie, Authorization header, or body
+        let token = req.cookies.tokenUser;
+        if (!token && req.headers?.authorization && req.headers.authorization.startsWith("Bearer ")) {
+            token = req.headers.authorization.substring(7);
+            console.log('ℹ️ Using token from Authorization header');
+        }
+        if (!token && req.body?.token) {
+            token = req.body.token;
+            console.log('ℹ️ Using token from request body');
+        }
         
         if (!token) {
             console.log('❌ No tokenUser cookie found');
