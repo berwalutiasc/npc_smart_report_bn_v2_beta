@@ -443,7 +443,7 @@ export const verifyLoginOtpUser = async (req, res) => {
         // console.log("searched")
 
         if (111111 !== otp) {
-            return res.status(400).json({ error: "Invalid otp" });
+            return res.status(400).json({ message: "Invalid otp" });
         }
 
         // Create final login token
@@ -499,7 +499,7 @@ export const verifyLoginOtpUser = async (req, res) => {
         });
 
     } catch (error) {
-        return res.status(500).json({ error: "Internal Server Error" });
+        return res.status(500).json({ message: "Internal Server Error" });
     }
 };
 
