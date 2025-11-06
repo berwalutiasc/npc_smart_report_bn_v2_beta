@@ -421,8 +421,8 @@ export const verifyLoginOtpUser = async (req, res) => {
         const { otp } = req.body;
 
         // Get user info from decoded token
-        const decodedToken = decodeCookie(req);
-        const userId = decodedToken.userId;
+        
+        const userId = req.user.id;
         console.log("dad")
         if (!userId || !otp) {
             return res.status(400).json({ error: "Required fields missing" });
