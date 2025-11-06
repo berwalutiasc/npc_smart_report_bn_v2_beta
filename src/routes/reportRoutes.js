@@ -18,7 +18,7 @@ const router = express.Router();
 router.get("/getReports", authenticateUser, getReport);
 
 // Submit a new report
-router.post("/submit", authenticateUser, saveReport);
+router.post("/submit", saveReport);
 
 // Get detailed report by ID
 router.get("/getReportById/:id", authenticateUser, getReportById);

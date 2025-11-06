@@ -140,8 +140,10 @@ export const getReport = async (req, res) => {
 
 export const saveReport = async (req, res) => {
   try {
+    // Get email from query parameters or request body
+    const reporterEmail = req.query.email || req.body.reporterEmail;
+
     const {
-      reporterEmail,
       itemEvaluated,
       generalComment,
       title,
@@ -149,32 +151,74 @@ export const saveReport = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!reporterEmail || !itemEvaluated) {
-      return res.status(400).json({ message: "Missing required fields" });
+    if (!reporterEmail) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Reporter email is required" 
+      });
     }
+
+    if (!itemEvaluated) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Item evaluated data is required" 
+      });
+    }
+
+    console.log("Processing report submission for email:", reporterEmail);
 
     // Get user from email
     const user = await prisma.user.findUnique({
       where: { email: reporterEmail },
-      select: { id: true, studentProfile: true },
+      select: { 
+        id: true, 
+        name: true,
+        email: true,
+        studentProfile: true 
+      },
     });
 
     if (!user) {
-      return res.status(400).json({ message: "User not found" });
+      return res.status(404).json({ 
+        success: false,
+        message: "User not found with the provided email" 
+      });
     }
+
+    console.log("User found:", user.name);
 
     // Fetch student class info
     const student = await prisma.student.findUnique({
       where: { userId: user.id },
-      include: { class: true },
+      include: { 
+        class: {
+          select: {
+            id: true,
+            name: true
+          }
+        } 
+      },
     });
+
+    if (!student) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Student profile not found" 
+      });
+    }
 
     const reporterId = user.id;
     const classId = student?.class?.id;
+    const className = student?.class?.name;
 
     if (!classId) {
-      return res.status(400).json({ message: "User not assigned to any class" });
+      return res.status(400).json({ 
+        success: false,
+        message: "User not assigned to any class" 
+      });
     }
+
+    console.log("Student class:", className);
 
     // Check if report already exists today
     const startOfDay = new Date();
@@ -192,38 +236,76 @@ export const saveReport = async (req, res) => {
 
     if (existingReport) {
       return res.status(400).json({
+        success: false,
         message: "You have already submitted a report for this class today",
+      });
+    }
+
+    // Validate itemEvaluated structure
+    if (typeof itemEvaluated !== 'object' || itemEvaluated === null) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid itemEvaluated format"
       });
     }
 
     // Save the report
     const report = await prisma.report.create({
       data: {
-        title: title || `Inspection Report ${new Date().toLocaleDateString()}`,
+        title: title || `Inspection Report - ${className} - ${new Date().toLocaleDateString()}`,
         reporterId,
         classId,
         itemEvaluated,
         generalComment: generalComment || "",
         category,
+        status: 'SUBMITTED' // Set initial status
       },
+      include: {
+        reporter: {
+          select: {
+            name: true,
+            email: true
+          }
+        },
+        class: {
+          select: {
+            name: true
+          }
+        }
+      }
     });
 
-    // Automatically create initial report review record (optional)
+    console.log("Report created successfully with ID:", report.id);
+
+    // Automatically create initial report review record
     await prisma.reportReview.create({
       data: {
         reportId: report.id,
         status: "PENDING",
+        comments: "Report submitted for review"
       },
     });
+
+    console.log("Report review record created");
 
     return res.status(201).json({
       success: true,
       message: "Report submitted successfully",
-      report,
+      data: {
+        reportId: report.id,
+        title: report.title,
+        class: report.class.name,
+        submittedAt: report.createdAt,
+        reporter: report.reporter.name
+      }
     });
   } catch (error) {
     console.error("Error submitting report:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ 
+      success: false,
+      message: "Internal server error",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
