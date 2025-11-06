@@ -418,13 +418,18 @@ export const loginUser = async (req, res) => {
  */
 export const verifyLoginOtpUser = async (req, res) => {
     try {
-        const { otp } = req.body;
+        const { otp, token } = req.body;
 
-        // Get user info from decoded token
+        // Get user info from decoded token (tries cookies, Authorization header, or body.token)
         const decodedToken = decodeCookie(req);
         if (!decodedToken) {
-            console.error("verifyLoginOtpUser: Failed to decode token. Cookies available:", Object.keys(req.cookies || {}));
-            return res.status(400).json({ message: "Invalid token" });
+            console.error("verifyLoginOtpUser: Failed to decode token.");
+            console.error("  - Cookies:", Object.keys(req.cookies || {}));
+            console.error("  - Request body keys:", Object.keys(req.body || {}));
+            return res.status(400).json({ 
+                message: "Invalid token. Please ensure you're sending the token from loginUser response.",
+                hint: "Send token in Authorization header as 'Bearer <token>' or in request body as 'token' field"
+            });
         }
 
         const userId = decodedToken.userId;

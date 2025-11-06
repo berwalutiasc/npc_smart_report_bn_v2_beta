@@ -2,12 +2,31 @@ import jwt from "jsonwebtoken";
 
 export const decodeCookie = (req) => {
   try {
-    // Automatically fetch the cookie named "tokenUser"
-    const token = req.cookies?.tokenUser; 
+    let token = null;
+
+    // Try to get token from multiple sources (in order of preference)
+    // 1. From cookies (preferred method)
+    token = req.cookies?.tokenUser;
     
+    // 2. From Authorization header (Bearer token)
+    if (!token && req.headers?.authorization) {
+      const authHeader = req.headers.authorization;
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+
+    // 3. From request body (fallback for OTP verification)
+    if (!token && req.body?.token) {
+      token = req.body.token;
+    }
+
     // Debug logging for production issues
     if (!token) {
-      console.error("decodeCookie: No token found in cookies. Available cookies:", Object.keys(req.cookies || {}));
+      console.error("decodeCookie: No token found in any source.");
+      console.error("  - Cookies:", Object.keys(req.cookies || {}));
+      console.error("  - Auth header:", req.headers?.authorization ? "present" : "missing");
+      console.error("  - Body token:", req.body?.token ? "present" : "missing");
       return null;
     }
 
