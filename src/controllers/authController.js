@@ -395,17 +395,31 @@ export const loginUser = async (req, res) => {
             cookieOptions.expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
         }
 
+        // Set cookie
         res.cookie("tokenUser", token, cookieOptions);
+        
+        // Debug logging for cookie setting
+        console.log("loginUser: Setting cookie with options:", {
+            httpOnly: cookieOptions.httpOnly,
+            secure: cookieOptions.secure,
+            sameSite: cookieOptions.sameSite,
+            path: cookieOptions.path,
+            isProduction,
+            cookieSet: true
+        });
+        console.log("loginUser: Token length:", token?.length || 0);
 
         return res.status(200).json({   
-            message: "Login successful",
-            token,
+            message: "Login successful. Store the 'token' field and send it in verifyLoginOtp request.",
+            token, // CRITICAL: Frontend MUST send this token in verifyLoginOtp
             user: {
                 id: user.id,
                 name: user.name,
                 email: user.email,
                 role: user.role,
-            }
+            },
+            // Instructions for frontend
+            nextStep: "Send this token in verifyLoginOtp as: Authorization header 'Bearer <token>' OR in body as { otp: '...', token: '<token>' }"
         });
     } catch (error) {
         return res.status(500).json({ error: "Internal Server Error" });
@@ -420,15 +434,30 @@ export const verifyLoginOtpUser = async (req, res) => {
     try {
         const { otp, token } = req.body;
 
+        // Debug logging for incoming request
+        console.log("verifyLoginOtpUser: Request received");
+        console.log("  - Cookies:", Object.keys(req.cookies || {}));
+        console.log("  - Auth header:", req.headers?.authorization ? "present" : "missing");
+        console.log("  - Body keys:", Object.keys(req.body || {}));
+        console.log("  - Body has token:", !!req.body?.token);
+        console.log("  - OTP provided:", !!otp);
+
         // Get user info from decoded token (tries cookies, Authorization header, or body.token)
         const decodedToken = decodeCookie(req);
         if (!decodedToken) {
             console.error("verifyLoginOtpUser: Failed to decode token.");
-            console.error("  - Cookies:", Object.keys(req.cookies || {}));
-            console.error("  - Request body keys:", Object.keys(req.body || {}));
+            console.error("  - All cookies:", req.cookies);
+            console.error("  - Authorization header value:", req.headers?.authorization?.substring(0, 20) + "..." || "none");
+            console.error("  - Full request body:", JSON.stringify(req.body));
+            
             return res.status(400).json({ 
                 message: "Invalid token. Please ensure you're sending the token from loginUser response.",
-                hint: "Send token in Authorization header as 'Bearer <token>' or in request body as 'token' field"
+                hint: "Send token in Authorization header as 'Bearer <token>' or in request body as 'token' field",
+                received: {
+                    cookies: Object.keys(req.cookies || {}),
+                    hasAuthHeader: !!req.headers?.authorization,
+                    bodyKeys: Object.keys(req.body || {})
+                }
             });
         }
 

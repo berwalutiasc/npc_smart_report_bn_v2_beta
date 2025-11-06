@@ -47,15 +47,17 @@ io.on("connection", (socket) => {
 // Make IO instance available throughout the app
 app.set("io", io);
 
+// CORS configuration - MUST be early to handle preflight requests and cookies
+app.use(cors({
+    origin: process.env.CLIENT_URL || "*",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    exposedHeaders: ["Set-Cookie"]
+}));
+
 // Middleware setup
 app.use(cookieParser());
-
-// CORS configuration
-app.use(cors({
-    origin: process.env.CLIENT_URL,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE"],
-}));
 
 // Body parsing middleware
 app.use(express.json());
