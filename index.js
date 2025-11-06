@@ -19,6 +19,8 @@ dotenv.config();
 
 // Initialize Express application
 const app = express();
+// Trust first proxy (Render/Heroku/NGINX) so secure cookies work
+app.set("trust proxy", 1);
 
 // Create HTTP server with Express app
 const httpServer = createServer(app);
