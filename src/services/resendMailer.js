@@ -183,7 +183,7 @@ export const sendEmail = async (email, templateType, data = {}, options = {}) =>
         }
 
         const mailOptions = {
-            from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+            from: "NPC Smart Report <onboarding@resend.dev>",
             to: email,
             subject: template.subject,
             text: template.text(data),
