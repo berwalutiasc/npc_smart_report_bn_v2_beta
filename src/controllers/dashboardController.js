@@ -340,14 +340,40 @@ export async function getStudentDashboardData(req, res) {
     console.log("Fetching Student Dashboard");
 
     // 1️⃣ Authenticate user
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required",
-      });
+    // if (!req.user) {
+    //   return res.status(401).json({
+    //     success: false,
+    //     message: "Authentication required",
+    //   });
+    // }
+
+    // const userId = req.user.id;
+
+    //get the email from params
+    const email = req.params.email;
+
+    //check if the student exist in user table
+    const user = await prisma.user.findUnique({
+        where: { email },
+    });
+
+    if (!user) {
+        return res.status(404).json({
+            success: false,
+            message: "Student not found",
+        });
     }
 
-    const userId = req.user.id;
+    //check if the user is a student
+    if (user.role !== "STUDENT") {
+        return res.status(403).json({
+            success: false,
+            message: "User is not a student",
+        });
+    }
+
+    //get the student id from user id
+    const userId = user.id;
 
     // 2️⃣ Fetch student profile with single class
     const student = await prisma.student.findUnique({
