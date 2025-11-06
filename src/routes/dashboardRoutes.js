@@ -20,7 +20,7 @@ router.get("/", authenticateUser ,(req, res) => {
 router.get("/mydash", getStudentDashboardData);
 
 // Get user profile data (requires authentication)
-router.get("/getProfile", getProfileUser);
+router.get("/getProfile", authenticateUser, getProfileUser);
 
 // Get user profile data (requires authentication)
 router.get("/getProfileAdmin", authenticateUser, getProfileAdmin);
