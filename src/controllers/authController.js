@@ -441,10 +441,17 @@ export const verifyLoginOtpUser = async (req, res) => {
         //     return res.status(400).json({ error: "Invalid token" });
         // }
         // console.log("searched")
+        const decodedToken = decodeCookie(req);
+        if (!decodedToken) {
+            return res.status(400).json({ message: "Invalid token" });
+        }
 
         if ("111111" !== otp) {
             return res.status(400).json({ message: "Invalid otp" });
         }
+
+        //devode the token
+
 
         // Create final login token
         const loginToken = createToken({
