@@ -3,6 +3,9 @@ import sgMail from '@sendgrid/mail';
 // Initialize SendGrid with API key
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
+
+console.log("SendGrid API Key:", process.env.SENDGRID_API_KEY);
+
 // Email templates for different scenarios
 const EMAIL_TEMPLATES = {
     // OTP email template for two-factor authentication
@@ -253,6 +256,8 @@ export const sendBulkEmail = async (emails, templateType, data = {}, options = {
 
 // Convenience service object for common email types
 export const emailService = {
+
+    
     /**
      * Send OTP email for two-factor authentication
      */
