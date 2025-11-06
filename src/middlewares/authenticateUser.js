@@ -202,7 +202,7 @@ const prisma = new PrismaClient();
 export const authenticateUser = (req, res, next) => {
   try {
     const token = req.cookies?.token || req.headers?.authorization?.replace('Bearer ', '');
-    
+    console.log("token", token)
     if (!token) {
       return res.status(401).json({ error: 'No token provided' });
     }
