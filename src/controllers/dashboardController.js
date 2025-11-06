@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-
+import jwt from "jsonwebtoken"
 const prisma = new PrismaClient();
 
 /**
@@ -22,7 +22,13 @@ export const getThat = async (req, res) => {
 export const getProfileUser = async (req, res) => {
     try {
         // Extract email from query parameters
-        const email  = req.user.email;
+        // receiveing the token from the token param if the endpoint
+
+        const token = req.params.token;
+        // decode the cookie here now using jwt 
+
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+        const email = decodedToken.email;
 
         // Validate required parameter
         if (!email) {
