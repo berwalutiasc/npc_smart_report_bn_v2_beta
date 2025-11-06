@@ -7,7 +7,7 @@ import {
     verifyLoginOtpUser,
     verifySignupLinkUser
 } from "../controllers/authController.js";
-import { authenticateUser } from "../middlewares/authenticateUser.js";
+import { authenticate } from "../middlewares/authenticateUser.js";
 
 const router = express.Router();
 
@@ -23,7 +23,7 @@ router.post("/createAdmin", createAdmin);
 router.post("/loginUser", loginUser);
 
 // Verify login OTP for two-factor authentication
-router.post("/verifyLoginOtp", authenticateUser, verifyLoginOtpUser);
+router.post("/verifyLoginOtp", authenticate, verifyLoginOtpUser);
 
 // Verify email signup link for account activation
 router.post("/verifySignupLink", verifySignupLinkUser);
