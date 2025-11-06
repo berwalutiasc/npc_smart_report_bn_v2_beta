@@ -7,6 +7,7 @@ import { emailService } from "../services/resendMailer.js";
 import { generateUserId } from "../utils/generateUserId.js";
 import { generateOtp } from "../utils/generateOtp.js";
 import { createToken } from "../utils/createToken.js";
+import jwt from "jsonwebtoken"
 import { decodeCookie } from "../utils/decodeCookie.js";
 import socketServices from "../services/socketServices.js";
 
