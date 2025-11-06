@@ -7,112 +7,112 @@ const prisma = new PrismaClient();
  * Middleware to authenticate users using JWT token
  * Verifies token validity and user status before allowing access to protected routes
  */
-export const authenticateUser = async (req, res, next) => {
-  try {
-    console.log("=== AUTHENTICATION DEBUG ===");
-    console.log("All cookies:", req.cookies);
+// export const authenticateUser = async (req, res, next) => {
+//   try {
+//     console.log("=== AUTHENTICATION DEBUG ===");
+//     console.log("All cookies:", req.cookies);
     
-    // Try multiple possible cookie names
-    let token = req.cookies.loginToken || 
-                req.cookies.tokenUser || 
-                req.cookies.authToken;
+//     // Try multiple possible cookie names
+//     let token = req.cookies.loginToken || 
+//                 req.cookies.tokenUser || 
+//                 req.cookies.authToken;
     
-    // Also check Authorization header
-    if (!token && req.headers?.authorization?.startsWith("Bearer ")) {
-      token = req.headers.authorization.substring(7);
-    }
+//     // Also check Authorization header
+//     if (!token && req.headers?.authorization?.startsWith("Bearer ")) {
+//       token = req.headers.authorization.substring(7);
+//     }
     
-    if (!token) {
-      console.log("❌ No authentication token found in:", {
-        cookies: Object.keys(req.cookies),
-        hasAuthHeader: !!req.headers.authorization
-      });
-      return res.status(401).json({ 
-        message: "Access denied. Please login again.",
-        debug: { availableCookies: Object.keys(req.cookies) }
-      });
-    }
+//     if (!token) {
+//       console.log("❌ No authentication token found in:", {
+//         cookies: Object.keys(req.cookies),
+//         hasAuthHeader: !!req.headers.authorization
+//       });
+//       return res.status(401).json({ 
+//         message: "Access denied. Please login again.",
+//         debug: { availableCookies: Object.keys(req.cookies) }
+//       });
+//     }
 
-    console.log("✅ Token found, verifying...");
+//     console.log("✅ Token found, verifying...");
 
-    // 2️⃣ Verify token
-    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("✅ Token decoded for user:", decodedToken.userEmail);
+//     // 2️⃣ Verify token
+//     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+//     console.log("✅ Token decoded for user:", decodedToken.userEmail);
 
-    // 3️⃣ Fetch user with profile info
-    const user = await prisma.user.findUnique({
-      where: { id: decodedToken.userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        status: true,
-        role: true,
-        studentProfile: {
-          select: {
-            id: true,
-            class: {
-              select: {
-                id: true,
-                name: true
-              }
-            },
-          }
-        },
-        adminProfile: {
-          select: {
-            id: true,
-            department: true
-          }
-        }
-      }
-    });
+//     // 3️⃣ Fetch user with profile info
+//     const user = await prisma.user.findUnique({
+//       where: { id: decodedToken.userId },
+//       select: {
+//         id: true,
+//         email: true,
+//         name: true,
+//         status: true,
+//         role: true,
+//         studentProfile: {
+//           select: {
+//             id: true,
+//             class: {
+//               select: {
+//                 id: true,
+//                 name: true
+//               }
+//             },
+//           }
+//         },
+//         adminProfile: {
+//           select: {
+//             id: true,
+//             department: true
+//           }
+//         }
+//       }
+//     });
 
-    if (!user) {
-      console.log("❌ User not found in database");
-      return res.status(401).json({ message: "User not found. Token invalid." });
-    }
+//     if (!user) {
+//       console.log("❌ User not found in database");
+//       return res.status(401).json({ message: "User not found. Token invalid." });
+//     }
 
-    if (user.status !== 'ACTIVE') {
-      console.log(`❌ User account is ${user.status}`);
-      return res.status(403).json({
-        message: `Account is ${user.status.toLowerCase()}. Please contact administrator.`
-      });
-    }
+//     if (user.status !== 'ACTIVE') {
+//       console.log(`❌ User account is ${user.status}`);
+//       return res.status(403).json({
+//         message: `Account is ${user.status.toLowerCase()}. Please contact administrator.`
+//       });
+//     }
 
-    // 4️⃣ Attach user info to request
-    req.user = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      status: user.status,
-      role: user.role,
-      classList: user.studentProfile?.class ? [{ 
-        id: user.studentProfile.class.id, 
-        name: user.studentProfile.class.name 
-      }] : [],
-      department: user.adminProfile?.department || null
-    };
+//     // 4️⃣ Attach user info to request
+//     req.user = {
+//       id: user.id,
+//       email: user.email,
+//       name: user.name,
+//       status: user.status,
+//       role: user.role,
+//       classList: user.studentProfile?.class ? [{ 
+//         id: user.studentProfile.class.id, 
+//         name: user.studentProfile.class.name 
+//       }] : [],
+//       department: user.adminProfile?.department || null
+//     };
 
-    console.log("✅ Authentication successful for:", user.email);
-    next();
+//     console.log("✅ Authentication successful for:", user.email);
+//     next();
 
-  } catch (error) {
-    console.error("❌ Authentication error:", error);
+//   } catch (error) {
+//     console.error("❌ Authentication error:", error);
     
-    if (error instanceof jwt.JsonWebTokenError) {
-      // Clear invalid tokens
-      res.clearCookie("loginToken");
-      return res.status(401).json({ message: "Invalid token. Please login again." });
-    }
-    if (error instanceof jwt.TokenExpiredError) {
-      res.clearCookie("loginToken");
-      return res.status(401).json({ message: "Token expired. Please login again." });
-    }
+//     if (error instanceof jwt.JsonWebTokenError) {
+//       // Clear invalid tokens
+//       res.clearCookie("loginToken");
+//       return res.status(401).json({ message: "Invalid token. Please login again." });
+//     }
+//     if (error instanceof jwt.TokenExpiredError) {
+//       res.clearCookie("loginToken");
+//       return res.status(401).json({ message: "Token expired. Please login again." });
+//     }
     
-    return res.status(500).json({ message: "Authentication failed. Please try again." });
-  }
-};
+//     return res.status(500).json({ message: "Authentication failed. Please try again." });
+//   }
+// };
 
 
 // export const authenticate = async (req, res, next) => {
@@ -197,6 +197,29 @@ export const authenticateUser = async (req, res, next) => {
 //   }
 // };
 
+
+// Check your token verification code
+export const authenticateUser = (req, res, next) => {
+  try {
+    const token = req.cookies?.token || req.headers?.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    // Verify the token format first
+    if (typeof token !== 'string' || token.split('.').length !== 3) {
+      return res.status(401).json({ error: 'Invalid token format' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    console.error('JWT Verification Error:', error.message);
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+};
 
 export const authenticateMe = async (req, res, next) => {
     try{
