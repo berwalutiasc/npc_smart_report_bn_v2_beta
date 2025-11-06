@@ -10,32 +10,26 @@ const prisma = new PrismaClient();
 export const authenticateUser = async (req, res, next) => {
   try {
     console.log("=== AUTHENTICATION DEBUG ===");
-    console.log("Cookies received:", req.cookies);
-    console.log("Authorization header:", req.headers.authorization);
+    console.log("All cookies:", req.cookies);
     
-    let token = req.cookies.loginToken;
-
-    // Fallback: Check Authorization header (only if it's not "Bearer null")
-    if (!token && req.headers?.authorization && req.headers.authorization.startsWith("Bearer ")) {
-      const headerToken = req.headers.authorization.substring(7);
-      if (headerToken && headerToken !== 'null' && headerToken !== 'undefined') {
-        token = headerToken;
-        console.log('ℹ️ Using token from Authorization header');
-      } else {
-        console.log('⚠️ Authorization header contains invalid token:', headerToken);
-      }
+    // Try multiple possible cookie names
+    let token = req.cookies.loginToken || 
+                req.cookies.tokenUser || 
+                req.cookies.authToken;
+    
+    // Also check Authorization header
+    if (!token && req.headers?.authorization?.startsWith("Bearer ")) {
+      token = req.headers.authorization.substring(7);
     }
-
+    
     if (!token) {
-      console.log("❌ No valid authentication token found");
-      console.log("Available cookies:", Object.keys(req.cookies));
+      console.log("❌ No authentication token found in:", {
+        cookies: Object.keys(req.cookies),
+        hasAuthHeader: !!req.headers.authorization
+      });
       return res.status(401).json({ 
         message: "Access denied. Please login again.",
-        debug: {
-          availableCookies: Object.keys(req.cookies),
-          hasAuthorizationHeader: !!req.headers.authorization,
-          authorizationValue: req.headers.authorization
-        }
+        debug: { availableCookies: Object.keys(req.cookies) }
       });
     }
 
