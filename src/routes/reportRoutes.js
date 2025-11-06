@@ -15,16 +15,16 @@ const router = express.Router();
 // Report management routes
 
 // Get reports with filtering and pagination
-router.get("/getReports", authenticateUser, getReport);
+router.get("/getReports", getReport);
 
 // Submit a new report
 router.post("/submit", saveReport);
 
 // Get detailed report by ID
-router.get("/getReportById/:id", authenticateUser, getReportById);
+router.get("/getReportById/:id", getReportById);
 
 // Download report as PDF
-router.get("/download/:id", authenticateUser, downloadReport);
+router.get("/download/:id", downloadReport);
 
 // Get today's report for approval (CS/CP roles)
 router.get('/approval', authenticateUser, getApprovalReport);

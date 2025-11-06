@@ -8,22 +8,23 @@ const prisma = new PrismaClient();
  */
 export const getReport = async (req, res) => {
   try {
-    const { filter, searchQuery } = req.query;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const { filter, search, page = 1, limit = 10, studentEmail } = req.query;
 
-    const studentEmail = req.user?.email;
+    // Get email from query parameters (like dashboard and profile)
+    const email = studentEmail || req.query.studentEmail;
 
-    if (!studentEmail) {
+    if (!email) {
       return res.status(400).json({
         success: false,
         message: 'Student email is required',
       });
     }
 
-    // Fetch user and student's class
+    console.log("Fetching reports for student:", email);
+
+    // Fetch user and student's class using email
     const user = await prisma.user.findUnique({
-      where: { email: studentEmail },
+      where: { email: email },
       include: {
         studentProfile: {
           include: { class: true },
@@ -31,7 +32,14 @@ export const getReport = async (req, res) => {
       },
     });
 
-    if (!user || user.role !== 'STUDENT') {
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found with the provided email',
+      });
+    }
+
+    if (user.role !== 'STUDENT') {
       return res.status(403).json({
         success: false,
         message: 'Access denied. Student role required.',
@@ -47,10 +55,15 @@ export const getReport = async (req, res) => {
     }
 
     const classId = studentClass.id;
+    const currentPage = parseInt(page) || 1;
+    const pageLimit = parseInt(limit) || 10;
+
+    console.log(`Processing reports for class: ${studentClass.name}, page: ${currentPage}`);
 
     // Calculate date range if filter exists
     const dateRange = filter ? calculateDateRange(filter) : null;
 
+    // Build where clause
     const whereClause = {
       classId,
       ...(dateRange && {
@@ -59,16 +72,15 @@ export const getReport = async (req, res) => {
           lte: dateRange.end,
         },
       }),
-      ...(searchQuery && {
+      ...(search && {
         OR: [
-          { title: { contains: searchQuery, mode: 'insensitive' } },
-          { generalComment: { contains: searchQuery, mode: 'insensitive' } },
+          { title: { contains: search, mode: 'insensitive' } },
+          { generalComment: { contains: search, mode: 'insensitive' } },
         ],
       }),
     };
 
-    const skip = (page - 1) * limit;
-    const take = limit;
+    const skip = (currentPage - 1) * pageLimit;
 
     // Fetch reports and count in parallel
     const [reports, totalCount] = await Promise.all([
@@ -84,18 +96,20 @@ export const getReport = async (req, res) => {
         },
         orderBy: { createdAt: 'desc' },
         skip,
-        take,
+        take: pageLimit,
       }),
       prisma.report.count({ where: whereClause }),
     ]);
+
+    console.log(`Found ${reports.length} reports out of ${totalCount} total`);
 
     // Transform for frontend
     const transformedReports = reports.map((report) => ({
       id: report.id,
       title: report.title,
       reporter: report.reporter?.name || 'Unknown',
-      submissionDate: report.createdAt.toISOString().split('T')[0],
-      status: report.status,
+      submissionDate: report.createdAt.toISOString(),
+      status: mapReportStatus(report.status), // Map to frontend status format
       class: report.class?.name || 'N/A',
       generalComment: report.generalComment,
       itemEvaluated: report.itemEvaluated,
@@ -116,11 +130,11 @@ export const getReport = async (req, res) => {
       data: {
         reports: transformedReports,
         pagination: {
-          currentPage: page,
-          totalPages: Math.ceil(totalCount / limit),
+          currentPage: currentPage,
+          totalPages: Math.ceil(totalCount / pageLimit),
           totalReports: totalCount,
-          hasNext: page < Math.ceil(totalCount / limit),
-          hasPrev: page > 1,
+          hasNext: currentPage < Math.ceil(totalCount / pageLimit),
+          hasPrev: currentPage > 1,
         },
       },
     });
@@ -133,6 +147,50 @@ export const getReport = async (req, res) => {
     });
   }
 };
+
+// Helper function to calculate date ranges
+function calculateDateRange(filter) {
+  const now = new Date();
+  let start, end;
+
+  switch (filter) {
+    case 'daily':
+      start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+      break;
+    case 'weekly':
+      start = new Date(now);
+      start.setDate(now.getDate() - 7);
+      end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+      break;
+    case 'monthly':
+      start = new Date(now);
+      start.setMonth(now.getMonth() - 1);
+      end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+      break;
+    default:
+      return null;
+  }
+
+  return { start, end };
+}
+
+// Helper function to map database status to frontend status
+function mapReportStatus(status) {
+  const statusMap = {
+    'SUBMITTED': 'pending',
+    'PENDING': 'pending',
+    'UNDER_REVIEW': 'pending',
+    'APPROVED': 'approved',
+    'REJECTED': 'rejected',
+    'DRAFT': 'pending'
+  };
+  return statusMap[status] || 'pending';
+}
 
 /**
  * Save a new report submission
