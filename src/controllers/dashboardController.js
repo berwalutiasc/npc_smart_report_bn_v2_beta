@@ -25,6 +25,7 @@ export const getProfileUser = async (req, res) => {
         // receiveing the token from the token param if the endpoint
 
         const token = req.params.token;
+        console.log("my tok", token)
         // decode the cookie here now using jwt 
 
         const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
