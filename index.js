@@ -55,12 +55,13 @@ const allowedOrigins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://localhost:3000",
-];
+].filter(Boolean); // Remove any undefined values
 
+// ✅ FIXED: CORS middleware - this handles preflight automatically
 app.use(cors({
     origin: (origin, callback) => {
         if (!origin) return callback(null, true); // allow non-browser clients
-        if (allowedOrigins.filter(Boolean).includes(origin)) {
+        if (allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
         return callback(new Error(`CORS blocked for origin: ${origin}`));
@@ -71,8 +72,8 @@ app.use(cors({
     exposedHeaders: ["Set-Cookie"]
 }));
 
-// Preflight support
-app.options("*", cors());
+// ✅ FIXED: Remove the problematic preflight line
+// app.options("*", cors()); // ❌ THIS WAS LINE 75 - REMOVE IT
 
 // Middleware setup
 app.use(cookieParser());
@@ -94,7 +95,7 @@ const port = process.env.PORT || 5000;
 
 // Start the server
 httpServer.listen(port, () => {
-    // Server successfully started
+    console.log(`🚀 Server running on port ${port}`);
 });
 
 // Export IO instance for use in other modules
