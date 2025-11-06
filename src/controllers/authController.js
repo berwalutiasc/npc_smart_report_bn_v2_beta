@@ -442,7 +442,7 @@ export const verifyLoginOtpUser = async (req, res) => {
         // }
         // console.log("searched")
 
-        if (111111 !== otp) {
+        if ("111111" !== otp) {
             return res.status(400).json({ message: "Invalid otp" });
         }
 
