@@ -9,20 +9,36 @@ const prisma = new PrismaClient();
  */
 export const authenticateUser = async (req, res, next) => {
   try {
-    // 1️⃣ Extract token from cookies
-    console.log("Asd")
-    const token = req.cookies.loginToken;
+    // 1️⃣ Extract token from cookies - look for loginToken (final auth token)
+    console.log("=== AUTHENTICATION DEBUG ===");
+    console.log("Cookies received:", req.cookies);
+    console.log("Authorization header:", req.headers.authorization);
+    
+    let token = req.cookies.loginToken;
 
-    if (!token) {
-      console.log("No token provided")
-      return res.status(401).json({ message: "Access denied. No token provided." });
+    // Fallback: Check Authorization header
+    if (!token && req.headers?.authorization && req.headers.authorization.startsWith("Bearer ")) {
+      token = req.headers.authorization.substring(7);
+      console.log('ℹ️ Using token from Authorization header');
     }
 
+    if (!token) {
+      console.log("❌ No loginToken found");
+      console.log("Available cookies:", Object.keys(req.cookies));
+      return res.status(401).json({ 
+        message: "Access denied. Please login again.",
+        debug: {
+          availableCookies: Object.keys(req.cookies),
+          hasAuthorizationHeader: !!req.headers.authorization
+        }
+      });
+    }
 
-    console.log("here")
+    console.log("✅ Token found, verifying...");
 
     // 2️⃣ Verify token
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("✅ Token decoded for user:", decodedToken.userEmail);
 
     // 3️⃣ Fetch user with profile info
     const user = await prisma.user.findUnique({
@@ -30,12 +46,13 @@ export const authenticateUser = async (req, res, next) => {
       select: {
         id: true,
         email: true,
+        name: true,
         status: true,
         role: true,
         studentProfile: {
           select: {
             id: true,
-            class: { // singular relation
+            class: {
               select: {
                 id: true,
                 name: true
@@ -53,10 +70,12 @@ export const authenticateUser = async (req, res, next) => {
     });
 
     if (!user) {
+      console.log("❌ User not found in database");
       return res.status(401).json({ message: "User not found. Token invalid." });
     }
 
     if (user.status !== 'ACTIVE') {
+      console.log(`❌ User account is ${user.status}`);
       return res.status(403).json({
         message: `Account is ${user.status.toLowerCase()}. Please contact administrator.`
       });
@@ -66,25 +85,29 @@ export const authenticateUser = async (req, res, next) => {
     req.user = {
       id: user.id,
       email: user.email,
+      name: user.name,
       status: user.status,
       role: user.role,
       classList: user.studentProfile?.class ? [{ 
         id: user.studentProfile.class.id, 
         name: user.studentProfile.class.name 
-      }] : [], // single class converted to array
-      studentRole: user.studentProfile?.studentRole || null,
+      }] : [],
       department: user.adminProfile?.department || null
     };
 
+    console.log("✅ Authentication successful for:", user.email);
     next();
+
   } catch (error) {
+    console.error("❌ Authentication error:", error);
+    
     if (error instanceof jwt.JsonWebTokenError) {
-      return res.status(401).json({ message: "Invalid token." });
+      return res.status(401).json({ message: "Invalid token. Please login again." });
     }
     if (error instanceof jwt.TokenExpiredError) {
       return res.status(401).json({ message: "Token expired. Please login again." });
     }
-    console.error("Authentication error:", error);
+    
     return res.status(500).json({ message: "Authentication failed. Please try again." });
   }
 };
