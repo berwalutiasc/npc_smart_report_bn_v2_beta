@@ -21,15 +21,10 @@ export const getThat = async (req, res) => {
  */
 export const getProfileUser = async (req, res) => {
     try {
-        // Extract email from query parameters
-        // receiveing the token from the token param if the endpoint
+        console.log("Fetching Student Profile");
 
-        const token = req.params.token;
-        console.log("my tok", token)
-        // decode the cookie here now using jwt 
-
-        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-        const email = decodedToken.email;
+        // Get email from query parameters (like dashboard)
+        const email = req.query.email;
 
         // Validate required parameter
         if (!email) {
@@ -38,6 +33,8 @@ export const getProfileUser = async (req, res) => {
                 message: 'Email is required'
             });
         }
+
+        console.log("Looking for user with email:", email);
 
         // Fetch user with student profile and class information
         const user = await prisma.user.findUnique({
@@ -101,10 +98,10 @@ export const getProfileUser = async (req, res) => {
         // Transform data to match frontend format
         const profileData = {
             // Personal Information
-            firstName: user.name.split(' ')[0] || user.name,
-            lastName: user.name.split(' ').slice(1).join(' ') || '',
+            firstName: user.name?.split(' ')[0] || user.name || '',
+            lastName: user.name?.split(' ').slice(1).join(' ') || '',
             email: user.email,
-            phone: user.phone,
+            phone: user.phone || 'Not provided',
             studentId: user.username,
             class: user.studentProfile?.class?.name || 'Not assigned',
             department: user.studentProfile?.class?.description || 'General Studies',
@@ -165,6 +162,7 @@ export const getProfileUser = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("Error loading student profile:", error);
         return res.status(500).json({
             success: false, 
             message: 'Internal server error',
