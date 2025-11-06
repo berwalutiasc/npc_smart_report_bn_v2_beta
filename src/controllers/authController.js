@@ -125,7 +125,7 @@ export const createStudent = async (req, res) => {
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
 
-    const verificationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/auth/verify/email?token=${link}`;
+    const verificationUrl = `https://npc-smart-report-fn-v2-beta-bozj.vercel.app/auth/verify/email?token=${link}`;
 
     // Send verification email using resendMailer
     try {
