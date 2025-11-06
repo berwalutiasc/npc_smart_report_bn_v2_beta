@@ -353,9 +353,11 @@ export async function getStudentDashboardData(req, res) {
     const email = req.params.email;
 
     //check if the student exist in user table
-    const user = await prisma.user.findUnique({
+    const user = await prisma.user.find({
         where: { email },
     });
+
+    console.log("asd")
 
     if (!user) {
         return res.status(404).json({
@@ -374,7 +376,7 @@ export async function getStudentDashboardData(req, res) {
 
     //get the student id from user id
     const userId = user.id;
-
+    console.log("userid", userId)
     // 2️⃣ Fetch student profile with single class
     const student = await prisma.student.findUnique({
       where: { userId },
@@ -389,7 +391,7 @@ export async function getStudentDashboardData(req, res) {
     }
 
     const classId = student.class.id;
-
+    console.log("classId ", classId)
     // 3️⃣ Total students in the same class
     const totalStudents = await prisma.student.count({
       where: { classId },
