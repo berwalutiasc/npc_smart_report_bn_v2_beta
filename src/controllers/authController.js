@@ -381,10 +381,11 @@ export const loginUser = async (req, res) => {
         });
 
         // Set temporary cookie for OTP verification
+        const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
         const cookieOptions = {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax", // "none" required for cross-origin with secure cookies
             path: "/",
             expires: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
         };
@@ -420,37 +421,32 @@ export const verifyLoginOtpUser = async (req, res) => {
         const { otp } = req.body;
 
         // Get user info from decoded token
-        
-        // const userId = req.user.id;
-        // console.log("dad")
-        // if (!userId || !otp) {
-        //     return res.status(400).json({ error: "Required fields missing" });
-        // }
-
-        // console.log("userid", userId)
-
-        // // Check verification using indexed userId field
-        // const verification = await prisma.verification.findFirst({
-        //     where: {
-        //         userId: userId,
-        //         reason: "LOGIN_VERIFICATION"
-        //     }
-        // });
-
-        // if (!verification) {
-        //     return res.status(400).json({ error: "Invalid token" });
-        // }
-        // console.log("searched")
         const decodedToken = decodeCookie(req);
         if (!decodedToken) {
+            console.error("verifyLoginOtpUser: Failed to decode token. Cookies available:", Object.keys(req.cookies || {}));
             return res.status(400).json({ message: "Invalid token" });
         }
 
-        if ("111111" !== otp) {
-            return res.status(400).json({ message: "Invalid otp" });
+        const userId = decodedToken.userId;
+        if (!userId || !otp) {
+            return res.status(400).json({ message: "Required fields missing" });
         }
 
-        //devode the token
+        // Check verification using indexed userId field
+        const verification = await prisma.verification.findFirst({
+            where: {
+                userId: userId,
+                reason: "LOGIN_VERIFICATION"
+            }
+        });
+
+        if (!verification) {
+            return res.status(400).json({ message: "Invalid token" });
+        }
+
+        if (verification.code !== otp) {
+            return res.status(400).json({ message: "Invalid otp" });
+        }
 
 
         // Create final login token
@@ -462,10 +458,11 @@ export const verifyLoginOtpUser = async (req, res) => {
         });
         console.log("done")
         // Set final login cookie
+        const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
         const loginTokenOptions = {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax", // "none" required for cross-origin with secure cookies
             path: "/",
             expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         };
@@ -473,7 +470,12 @@ export const verifyLoginOtpUser = async (req, res) => {
         res.cookie("loginToken", loginToken, loginTokenOptions);
 
         // Clear temporary OTP verification cookie
-        res.clearCookie("tokenUser");
+        res.clearCookie("tokenUser", {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
+            path: "/"
+        });
 
         // Delete verification record after successful verification
         await prisma.verification.deleteMany({
