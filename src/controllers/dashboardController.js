@@ -339,59 +339,67 @@ export async function getStudentDashboardData(req, res) {
   try {
     console.log("Fetching Student Dashboard");
 
-    // 1️⃣ Authenticate user
-    // if (!req.user) {
-    //   return res.status(401).json({
-    //     success: false,
-    //     message: "Authentication required",
-    //   });
-    // }
+    // Get the email from query params (not params)
+    const email = req.query.email; // Changed from req.params.email to req.query.email
 
-    // const userId = req.user.id;
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email parameter is required",
+      });
+    }
 
-    //get the email from params
-    const email = req.params.email;
+    console.log("Looking for user with email:", email);
 
-    //check if the student exist in user table
-    const user = await prisma.user.find({
-        where: { email },
+    // ✅ FIX: Use findUnique instead of find
+    const user = await prisma.user.findUnique({
+      where: { email },
     });
 
-    console.log("asd")
+    console.log("User found:", user ? "Yes" : "No");
 
     if (!user) {
-        return res.status(404).json({
-            success: false,
-            message: "Student not found",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
     }
 
-    //check if the user is a student
+    // Check if the user is a student
     if (user.role !== "STUDENT") {
-        return res.status(403).json({
-            success: false,
-            message: "User is not a student",
-        });
+      return res.status(403).json({
+        success: false,
+        message: "User is not a student",
+      });
     }
 
-    //get the student id from user id
+    // Get the student id from user id
     const userId = user.id;
-    console.log("userid", userId)
+    console.log("userid", userId);
+
     // 2️⃣ Fetch student profile with single class
     const student = await prisma.student.findUnique({
       where: { userId },
       include: { class: true }, // singular
     });
 
-    if (!student || !student.class) {
+    if (!student) {
       return res.status(404).json({
         success: false,
-        message: "Student profile or class not found",
+        message: "Student profile not found",
+      });
+    }
+
+    if (!student.class) {
+      return res.status(404).json({
+        success: false,
+        message: "Student class not found",
       });
     }
 
     const classId = student.class.id;
-    console.log("classId ", classId)
+    console.log("classId ", classId);
+
     // 3️⃣ Total students in the same class
     const totalStudents = await prisma.student.count({
       where: { classId },
@@ -407,7 +415,10 @@ export async function getStudentDashboardData(req, res) {
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
     const weeklyReports = await prisma.report.findMany({
-      where: { classId, createdAt: { gte: oneWeekAgo } },
+      where: { 
+        classId, 
+        createdAt: { gte: oneWeekAgo } 
+      },
       select: { createdAt: true, itemEvaluated: true },
     });
 
@@ -466,6 +477,7 @@ export async function getStudentDashboardData(req, res) {
       });
     });
 
+    // Sort and format recent activity
     const sortedRecentActivity = recentActivity
       .filter((a) => a.timestamp)
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
@@ -481,7 +493,13 @@ export async function getStudentDashboardData(req, res) {
     // 7️⃣ Recent Reports List
     const recentReportsList = await prisma.report.findMany({
       where: { classId },
-      select: { id: true, title: true, status: true, createdAt: true, class: { select: { name: true } } },
+      select: { 
+        id: true, 
+        title: true, 
+        status: true, 
+        createdAt: true, 
+        class: { select: { name: true } } 
+      },
       orderBy: { createdAt: "desc" },
       take: 4,
     });
@@ -499,8 +517,20 @@ export async function getStudentDashboardData(req, res) {
       success: true,
       data: {
         stats: [
-          { title: "Total Reports", value: totalReports, icon: "FileText", trend: 0, color: "#3b82f6" },
-          { title: "Active Students", value: totalStudents, icon: "Users", trend: 0, color: "#10b981" },
+          { 
+            title: "Total Reports", 
+            value: totalReports, 
+            icon: "FileText", 
+            trend: 0, 
+            color: "#3b82f6" 
+          },
+          { 
+            title: "Active Students", 
+            value: totalStudents, 
+            icon: "Users", 
+            trend: 0, 
+            color: "#10b981" 
+          },
         ],
         weeklyData,
         recentActivity: sortedRecentActivity,
@@ -509,13 +539,14 @@ export async function getStudentDashboardData(req, res) {
     });
   } catch (error) {
     console.error("Error loading student dashboard:", error);
-    res.status(502).json({
+    res.status(500).json({
       success: false,
       message: "Internal server error",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 }
+
 
 
 /**
