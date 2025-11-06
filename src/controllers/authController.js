@@ -423,7 +423,7 @@ export const verifyLoginOtpUser = async (req, res) => {
         // Get user info from decoded token
         const decodedToken = decodeCookie(req);
         const userId = decodedToken.userId;
-
+        console.log("dad")
         if (!userId || !otp) {
             return res.status(400).json({ error: "Required fields missing" });
         }
@@ -439,6 +439,7 @@ export const verifyLoginOtpUser = async (req, res) => {
         if (!verification) {
             return res.status(400).json({ error: "Invalid token" });
         }
+        console.log("searched")
 
         if (verification.code !== otp) {
             return res.status(400).json({ error: "Invalid otp" });
@@ -451,7 +452,7 @@ export const verifyLoginOtpUser = async (req, res) => {
             userEmail: decodedToken.userEmail,
             userRole: decodedToken.userRole,
         });
-
+        console.log("done")
         // Set final login cookie
         const loginTokenOptions = {
             httpOnly: true,
@@ -473,6 +474,8 @@ export const verifyLoginOtpUser = async (req, res) => {
                 reason: "LOGIN_VERIFICATION"
             }
         });
+
+        console.log("almost")
 
         // Send login notification email using resendMailer
         try {
