@@ -384,8 +384,8 @@ export const loginUser = async (req, res) => {
         const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
         const cookieOptions = {
             httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? "none" : "lax", // "none" required for cross-origin with secure cookies
+            secure: isProduction, // true on Render/Prod, false on localhost
+            sameSite: "none",    // always none to allow cross-site (different ports)
             path: "/",
             expires: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
         };
@@ -495,8 +495,8 @@ export const verifyLoginOtpUser = async (req, res) => {
         const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
         const loginTokenOptions = {
             httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? "none" : "lax", // "none" required for cross-origin with secure cookies
+            secure: isProduction, // true on Render/Prod, false on localhost
+            sameSite: "none",    // always none to allow cross-site (different ports)
             path: "/",
             expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         };
@@ -507,7 +507,7 @@ export const verifyLoginOtpUser = async (req, res) => {
         res.clearCookie("tokenUser", {
             httpOnly: true,
             secure: isProduction,
-            sameSite: isProduction ? "none" : "lax",
+            sameSite: "none",
             path: "/"
         });
 
