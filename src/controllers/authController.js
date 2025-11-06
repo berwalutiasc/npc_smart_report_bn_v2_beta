@@ -481,7 +481,7 @@ export const verifyLoginOtpUser = async (req, res) => {
             userId: decodedToken.userId,
             name: decodedToken.name,
             userEmail: decodedToken.userEmail,
-            userRole: decodedToken.userRole,
+            role: decodedToken.userRole,
         });
 
         // Set final login cookie with proper cross-origin settings
