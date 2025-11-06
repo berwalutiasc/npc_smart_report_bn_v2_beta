@@ -31,7 +31,7 @@ export const getReport = async (req, res) => {
         },
       },
     });
-
+    console.log("gake")
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -53,6 +53,8 @@ export const getReport = async (req, res) => {
         message: 'Student is not assigned to any class',
       });
     }
+
+    console.log("studentClass", studentClass)
 
     const classId = studentClass.id;
     const currentPage = parseInt(page) || 1;
