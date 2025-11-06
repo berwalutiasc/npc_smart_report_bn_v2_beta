@@ -1,7 +1,7 @@
-import { Resend } from "resend";
+import sgMail from '@sendgrid/mail';
 
-// Initialize Resend with API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize SendGrid with API key
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 // Email templates for different scenarios
 const EMAIL_TEMPLATES = {
@@ -161,7 +161,7 @@ const EMAIL_TEMPLATES = {
 };
 
 /**
- * Send email using predefined templates with Resend
+ * Send email using predefined templates with SendGrid
  * @param {string} email - Recipient email address
  * @param {string} templateType - Type of email template (OTP, PASSWORD_RESET, etc.)
  * @param {object} data - Data to be used in the template
@@ -177,13 +177,13 @@ export const sendEmail = async (email, templateType, data = {}, options = {}) =>
             throw new Error(`Email template '${templateType}' not found`);
         }
 
-        // Validate Resend API key
-        if (!process.env.RESEND_API_KEY) {
-            throw new Error("RESEND_API_KEY environment variable is required");
+        // Validate SendGrid API key
+        if (!process.env.SENDGRID_API_KEY) {
+            throw new Error("SENDGRID_API_KEY environment variable is required");
         }
 
         const mailOptions = {
-            from: "NPC Smart Report <onboarding@resend.dev>",
+            from: process.env.SENDGRID_FROM_EMAIL || 'noreply@npcsmartreport.com',
             to: email,
             subject: template.subject,
             text: template.text(data),
@@ -191,13 +191,9 @@ export const sendEmail = async (email, templateType, data = {}, options = {}) =>
             ...options
         };
 
-        const { data: result, error } = await resend.emails.send(mailOptions);
+        const result = await sgMail.send(mailOptions);
         
-        if (error) {
-            throw new Error(error.message);
-        }
-
-        console.log(`✅ ${templateType} email sent to ${email}:`, result?.id);
+        console.log(`✅ ${templateType} email sent to ${email}`);
         return result;
     } catch (error) {
         console.error(`❌ Failed to send ${templateType} email to ${email}:`, error);
@@ -206,7 +202,7 @@ export const sendEmail = async (email, templateType, data = {}, options = {}) =>
 };
 
 /**
- * Send email to multiple recipients with Resend
+ * Send email to multiple recipients with SendGrid
  * @param {string[]} emails - Array of recipient email addresses
  * @param {string} templateType - Type of email template
  * @param {object} data - Data to be used in the template
@@ -221,15 +217,15 @@ export const sendBulkEmail = async (emails, templateType, data = {}, options = {
             throw new Error(`Email template '${templateType}' not found`);
         }
 
-        if (!process.env.RESEND_API_KEY) {
-            throw new Error("RESEND_API_KEY environment variable is required");
+        if (!process.env.SENDGRID_API_KEY) {
+            throw new Error("SENDGRID_API_KEY environment variable is required");
         }
 
         // Send to each recipient individually for better tracking
         const results = [];
         for (const email of emails) {
             const mailOptions = {
-                from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+                from: process.env.SENDGRID_FROM_EMAIL || 'noreply@npcsmartreport.com',
                 to: email,
                 subject: template.subject,
                 text: template.text(data),
@@ -237,17 +233,17 @@ export const sendBulkEmail = async (emails, templateType, data = {}, options = {
                 ...options
             };
 
-            const { data: result, error } = await resend.emails.send(mailOptions);
-            
-            if (error) {
+            try {
+                const result = await sgMail.send(mailOptions);
+                results.push({ email, success: true, result });
+            } catch (error) {
                 console.error(`Failed to send to ${email}:`, error);
-                continue;
+                results.push({ email, success: false, error: error.message });
             }
-            
-            results.push({ email, id: result?.id });
         }
 
-        console.log(`✅ Bulk ${templateType} emails sent: ${results.length}/${emails.length} successful`);
+        const successful = results.filter(r => r.success).length;
+        console.log(`✅ Bulk ${templateType} emails sent: ${successful}/${emails.length} successful`);
         return results;
     } catch (error) {
         console.error(`❌ Failed to send bulk ${templateType} emails:`, error);
@@ -304,17 +300,16 @@ export const emailService = {
         try {
             // Try to send a test email to verify configuration
             const testEmail = 'test@example.com';
-            const { data, error } = await resend.emails.send({
-                from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+            const result = await sgMail.send({
+                from: process.env.SENDGRID_FROM_EMAIL || 'noreply@npcsmartreport.com',
                 to: testEmail,
                 subject: 'Test Email - NPC Smart Report',
-                html: '<p>This is a test email to verify Resend configuration.</p>'
+                html: '<p>This is a test email to verify SendGrid configuration.</p>'
             });
             
-            if (error) throw error;
-            return { success: true, message: 'Resend configured successfully', data };
+            return { success: true, message: 'SendGrid configured successfully', data: result };
         } catch (error) {
-            return { success: false, message: `Resend configuration failed: ${error.message}` };
+            return { success: false, message: `SendGrid configuration failed: ${error.message}` };
         }
     }
 };
