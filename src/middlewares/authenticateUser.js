@@ -9,27 +9,32 @@ const prisma = new PrismaClient();
  */
 export const authenticateUser = async (req, res, next) => {
   try {
-    // 1️⃣ Extract token from cookies - look for loginToken (final auth token)
     console.log("=== AUTHENTICATION DEBUG ===");
     console.log("Cookies received:", req.cookies);
     console.log("Authorization header:", req.headers.authorization);
     
     let token = req.cookies.loginToken;
 
-    // Fallback: Check Authorization header
+    // Fallback: Check Authorization header (only if it's not "Bearer null")
     if (!token && req.headers?.authorization && req.headers.authorization.startsWith("Bearer ")) {
-      token = req.headers.authorization.substring(7);
-      console.log('ℹ️ Using token from Authorization header');
+      const headerToken = req.headers.authorization.substring(7);
+      if (headerToken && headerToken !== 'null' && headerToken !== 'undefined') {
+        token = headerToken;
+        console.log('ℹ️ Using token from Authorization header');
+      } else {
+        console.log('⚠️ Authorization header contains invalid token:', headerToken);
+      }
     }
 
     if (!token) {
-      console.log("❌ No loginToken found");
+      console.log("❌ No valid authentication token found");
       console.log("Available cookies:", Object.keys(req.cookies));
       return res.status(401).json({ 
         message: "Access denied. Please login again.",
         debug: {
           availableCookies: Object.keys(req.cookies),
-          hasAuthorizationHeader: !!req.headers.authorization
+          hasAuthorizationHeader: !!req.headers.authorization,
+          authorizationValue: req.headers.authorization
         }
       });
     }
@@ -102,9 +107,12 @@ export const authenticateUser = async (req, res, next) => {
     console.error("❌ Authentication error:", error);
     
     if (error instanceof jwt.JsonWebTokenError) {
+      // Clear invalid tokens
+      res.clearCookie("loginToken");
       return res.status(401).json({ message: "Invalid token. Please login again." });
     }
     if (error instanceof jwt.TokenExpiredError) {
+      res.clearCookie("loginToken");
       return res.status(401).json({ message: "Token expired. Please login again." });
     }
     
