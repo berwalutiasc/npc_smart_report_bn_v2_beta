@@ -3,7 +3,7 @@ import { hashThePassword } from "../utils/hashPassword.js";
 import { generateLink } from "../utils/generateLink.js";
 import { compareThePassword } from "../utils/compareThePassword.js";
 import { generateUsername } from "../utils/generateUsername.js";
-import { emailService } from "../services/sendMail.js";
+import { emailService } from "../services/resendMailer.js";
 import { generateUserId } from "../utils/generateUserId.js";
 import { generateOtp } from "../utils/generateOtp.js";
 import { createToken } from "../utils/createToken.js";
