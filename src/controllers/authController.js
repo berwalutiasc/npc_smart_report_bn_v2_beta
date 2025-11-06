@@ -127,12 +127,12 @@ export const createStudent = async (req, res) => {
 
     const verificationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/auth/verify/email?token=${link}`;
 
-    // Send verification email (async - don't await for faster response)
-    if (emailService && emailService.sendVerificationEmail) {
-      emailService.sendVerificationEmail(email, name, verificationUrl)
-        .catch(error => console.error('Failed to send verification email:', error));
-    } else {
-      console.log('Verification URL (for development):', verificationUrl);
+    // Send verification email using resendMailer
+    try {
+      await emailService.sendVerificationEmail(email, name, verificationUrl);
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+      // Continue execution even if email fails - user is still created
     }
 
     return res.status(201).json({
@@ -270,11 +270,16 @@ export const createAdmin = async (req, res) => {
             }
         });
 
-        // Generate verification link
-        link = `http://localhost:3000/auth/verify/email?token=${link}`;
+        // Generate verification link using BASE_URL
+        const verificationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/auth/verify/email?token=${link}`;
         
-        // Send verification email
-        await emailService.sendVerificationEmail(email, name, link);
+        // Send verification email using resendMailer
+        try {
+          await emailService.sendVerificationEmail(email, name, verificationUrl);
+        } catch (error) {
+          console.error('Failed to send verification email:', error);
+          // Continue execution even if email fails - user is still created
+        }
 
         // Emit socket event for user registration
         const io = req.app.get("io");
@@ -340,7 +345,6 @@ export const loginUser = async (req, res) => {
 
         // Generate and send OTP
         const otp = generateOtp();
-        // await emailService.sendOTP(email, otp);
 
         // Save OTP using indexed userId field
         await prisma.verification.upsert({
@@ -359,7 +363,14 @@ export const loginUser = async (req, res) => {
             }
         });
 
-        await emailService.sendOTP(email, otp);
+        // Send OTP email using resendMailer
+        try {
+            await emailService.sendOTP(email, otp);
+        } catch (error) {
+            console.error('Failed to send OTP email:', error);
+            // Continue execution - user can still verify OTP if they have it from another source
+            // In production, you might want to return an error here
+        }
 
         // Create temporary token for OTP verification
         const token = createToken({
@@ -463,8 +474,13 @@ export const verifyLoginOtpUser = async (req, res) => {
             }
         });
 
-        // Send login notification email
-        await emailService.sendLoginNotification(decodedToken.userEmail, "SMART_WIFI", new Date().toLocaleString());
+        // Send login notification email using resendMailer
+        try {
+            await emailService.sendLoginNotification(decodedToken.userEmail, "SMART_WIFI", new Date().toLocaleString());
+        } catch (error) {
+            console.error('Failed to send login notification email:', error);
+            // Continue execution - login is successful even if notification email fails
+        }
 
         return res.status(200).json({
             message: "Login successful",
