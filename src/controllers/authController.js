@@ -428,6 +428,8 @@ export const verifyLoginOtpUser = async (req, res) => {
             return res.status(400).json({ error: "Required fields missing" });
         }
 
+        console.log("userid", userId)
+
         // Check verification using indexed userId field
         const verification = await prisma.verification.findFirst({
             where: {
